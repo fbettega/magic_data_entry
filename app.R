@@ -1,8 +1,11 @@
 library(shiny)
 library(tidyverse)
 library(datamods)
+library(data.table)
+library(DT)
 conflicted::conflict_prefer("filter", "dplyr")
-
+conflicted::conflicts_prefer(DT::renderDataTable)
+conflicted::conflicts_prefer(shiny::renderDataTable)
 outputDir <- "data"
 
 `%notin%`<- negate(`%in%`)
@@ -19,27 +22,45 @@ deck_parser <- function(deck_path) {
 }
 
 
-data_matchup <- read_rds(
-  file.path(
-    outputDir,
-    "modern_deck.rds"
-    )
-  )
+# data_matchup <- read_rds(
+#   file.path(
+#     outputDir,
+#     "modern_deck.rds"
+#     )
+#   )
 
 
- 
+
 
 # Edit side plan
 # df_Side_table <-  read_rds(file.path(outputDir, "df_Side_table.rds"))
 # xlsx::write.xlsx(df_Side_table,row.names = FALSE,"temp.xlsx")
 # df_Side_table <- xlsx::read.xlsx("temp.xlsx",sheetIndex = 1)
+
+# df_Side_table <- df_Side_table  %>%  mutate(
+#   Player = trimws(Player)
+#   ,Fiability = ifelse(Player == "PieGonti",9,Fiability),
+#    Matchup = str_replace(Matchup,"Jund","Saga party"))
+#   
+# 
+# 
 # saveRDS(df_Side_table,file.path(outputDir, "df_Side_table.rds"))
 
 
+# Edit matchup
+# data_matchup <- read_rds(
+#   file.path(
+#     outputDir,
+#     "modern_deck.rds"
+#   )
+# )
+# saveRDS(data_matchup %>%
+#           arrange(match_up),
+#         file = file.path(outputDir, sprintf("%s.rds", "modern_deck")))
 
-# data_matchup <- inner_join(data_matchup,Colors_choice,by = "color") %>% rename(color_name = name)
 
 
+# data_matchup <- data_matchup #%>% mutate(match_up = str_replace(match_up,"Jund","Saga party"))
 
 
   
@@ -99,11 +120,12 @@ name = c("Mono U",
       )
     )
 
-
-
-
-
-
+options(DT.options = list(
+  pageLength = 5,
+  lengthMenu = c(5, 50, 100, 1000), 
+  language = list(search = 'Filter:')
+  )
+  )
 
 
 # df_Side_table <- data.frame(
@@ -121,15 +143,6 @@ name = c("Mono U",
 #   Fiability = character()
 # )
 # saveRDS(df_Side_table,file.path(outputDir,"df_Side_table.rds"))
-
-
-
-
-
-
-
-
-
 
 
 
@@ -222,7 +235,7 @@ ui <- navbarPage(
         verbatimTextOutput("text_control_sum")
       ),
       wellPanel(
-        tableOutput('edited_r_side_plan')
+        DTOutput('edited_r_side_plan')
         # edit_data_ui(id = "side_plan_edit_df")
       )
     )
@@ -250,7 +263,8 @@ ui <- navbarPage(
       ),
       mainPanel(
         wellPanel(
-          tableOutput('result_matchup_table')
+          DTOutput('result_matchup_table')
+          # tableOutput('result_matchup_table')
         )
       )
     )
@@ -289,10 +303,26 @@ ui <- navbarPage(
         actionButton("save_new_common_cards", "Save new cards")
       ),
       wellPanel(
-        tableOutput("preview")
+        DTOutput("preview")
       )
     )
-  )
+  ),
+  tabPanel(
+    "Manual edit table",
+    sidebarPanel(
+      # Manual edit table
+      wellPanel(
+        shinyjs::useShinyjs(),
+        h3("Save table"),
+        actionButton("save_manual_edit_table", "Save edit")
+      )
+    ), mainPanel(
+      wellPanel(
+        edit_data_ui(id = "side_plan_editable_df")
+      )
+    )
+  ),
+  id = "Tab_active_nav_bar"
 )
 
 
@@ -300,35 +330,49 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
   
-  data_matchup <- reactive(read_rds(
-    file.path(
-      outputDir,
-      "modern_deck.rds"
-    )
-  ))
+
+
+reload_data_switch_tab <- eventReactive(input$Tab_active_nav_bar, {
+    data_matchup <- reactive(read_rds(
+      file.path(
+        outputDir,
+        "modern_deck.rds"
+      )
+    ))
+    
+    df_Side_table <- reactive({
+      read_rds(file.path(outputDir, "df_Side_table.rds"))
+    })
+    
+    return(list(
+      data_matchup = data_matchup,
+      df_Side_table = df_Side_table
+    ))
+    
+  })
+
+  
+
+# reload_data_switch_tab$data_matchup
+  
   
   ######### matchup panel #####################################
 
-  # edited_r_mathup <- edit_data_server(
-  #   id = "matchup",
-  #   data_r = ,
-  #   add = TRUE,
-  #   update = TRUE,
-  #   delete = TRUE,
-  #   download_csv = FALSE,
-  #   download_excel = FALSE,
-  #   var_mandatory = c("match_up")
-  # )
 
 
+  # output$result_matchup_table <-  renderTable(
+  #   reload_data_switch_tab()$data_matchup(),
+  #   striped = TRUE,
+  #   hover = TRUE,
+  #   bordered = TRUE
+  #   )
 
-  output$result_matchup_table <-  renderTable(
-    data_matchup(),
-    striped = TRUE,
-    hover = TRUE,
-    bordered = TRUE
-    )
-
+output$result_matchup_table <-  renderDT(
+  datatable(reload_data_switch_tab()$data_matchup())#,
+  # striped = TRUE,
+  # hover = TRUE,
+  # bordered = TRUE
+)
 
   observeEvent(input$add_one_matchup, {
     validate(
@@ -336,6 +380,7 @@ server <- function(input, output, session) {
       need(input$Add_color != "" | input$Add_color_name != "", "No color"),
     )
     
+
 
     # Gere ajouter le nom ou la couleur 
     if(input$Add_color_name != "" ){
@@ -366,8 +411,8 @@ server <- function(input, output, session) {
       )
     }
     # Rajoute Any si non deja présent 
-    if (add_matchup_df$color != "Any" & (all(data_matchup()$match_up %notin% input$one_matchup_add) |
-                                         "Any" %notin% data_matchup()$color[data_matchup()$match_up == input$one_matchup_add]) 
+    if (add_matchup_df$color != "Any" & (all(reload_data_switch_tab()$data_matchup()$match_up %notin% input$one_matchup_add) |
+                                         "Any" %notin% reload_data_switch_tab()$data_matchup()$color[reload_data_switch_tab()$data_matchup()$match_up == input$one_matchup_add]) 
         ){
       add_matchup_df <- 
         rbind(add_matchup_df,
@@ -381,16 +426,13 @@ server <- function(input, output, session) {
       
     }
 
-    new_matchup_df <- rbind(add_matchup_df,data_matchup()) 
+    new_matchup_df <- rbind(add_matchup_df,reload_data_switch_tab()$data_matchup()) 
     
     
-    output$result_matchup_table <-  renderTable(
-      new_matchup_df,
-      striped = TRUE,
-      hover = TRUE,
-      bordered = TRUE
+
+    output$result_matchup_table <-  renderDT(
+      data.table(new_matchup_df)
     )
-    
     
     saveRDS(new_matchup_df %>%
               arrange(match_up),
@@ -441,11 +483,22 @@ server <- function(input, output, session) {
       )
   })
 
-  output$preview <- renderTable(new_card_import_df(), striped = TRUE, hover = TRUE, bordered = TRUE)
+  # output$preview <- renderTable(
+  #   new_card_import_df(), 
+  #   striped = TRUE,
+  #   hover = TRUE,
+  #   bordered = TRUE
+  #   )
 
+  output$preview <- renderDT(
+    data.table(new_card_import_df())
+  )
+  
   observeEvent(input$save_new_common_cards, {
     Decks_common_cards <- read_rds("data/Decks_common_cards.rds")
-
+    
+    
+  
 
     Decks_common_cards <- rbind(Decks_common_cards, new_card_import_df()) %>% 
       mutate(Card_name = tolower(Card_name)) %>% 
@@ -470,7 +523,8 @@ server <- function(input, output, session) {
         deck = isolate(input$one_card_add_common_cards_deck)
       )
 
-      Decks_common_cards <- rbind(Decks_common_cards, new_card_import_df) %>%
+      Decks_common_cards <- rbind(Decks_common_cards, new_card_import_df) %>% 
+        mutate(Card_name = tolower(Card_name)) %>%
         distinct(pick(everything()), .keep_all = TRUE)
 
       saveRDS(Decks_common_cards, file = file.path(outputDir, sprintf("%s.rds", "Decks_common_cards")))
@@ -499,6 +553,7 @@ server <- function(input, output, session) {
         "modern_deck.rds"
       )
     )
+
     possible_color_user_deck <- data_matchup %>% 
       filter(
         match_up  == input$Deck_en_cours_side #"Omnath Control"
@@ -633,51 +688,26 @@ server <- function(input, output, session) {
   })
   
   
-  df_Side_table <- reactive({
-    read_rds(file.path(outputDir, "df_Side_table.rds"))
-    })
-  
 
-  # edited_r_side_plan <- edit_data_server(
-  #   id = "side_plan_edit_df",
-  #   data_r = df_Side_table,
-  #   add = FALSE,
-  #   update = TRUE,
-  #   delete = TRUE,
-  #   download_csv = FALSE,
-  #   download_excel = FALSE,
-  #   var_mandatory = c(
-  #     "Deck",
-  #     "Player",
-  #     "Date",
-  #     "Matchup",
-  #     "Play_Draw",
-  #     "IN",
-  #     "OUT",
-  #     "Fiabilite"
-  #   )
+  # output$edited_r_side_plan <-  renderTable(
+  #   reload_data_switch_tab()$df_Side_table() %>% 
+  #     mutate(Date = as.character(Date)),# %>% 
+  #     # relocate(link_deck_list,link_source,Note_side_plan,.after =last_col()),
+  #   striped = TRUE,
+  #   hover = TRUE,
+  #   bordered = TRUE
   # )
-  output$edited_r_side_plan <-  renderTable(
-    df_Side_table(),
-    striped = TRUE,
-    hover = TRUE,
-    bordered = TRUE
-  )
   
-
-
-  # output$result_side_plan_edit_df <- renderPrint({
-  #   str(edited_r_side_plan())
-  # })
-  
- 
-
-
-  
-  
- 
-  
-  
+  output$edited_r_side_plan <-  renderDT(
+    data.table(reload_data_switch_tab()$df_Side_table()) ,
+               options = list(columnDefs = list(list(
+      targets = c(5,6),
+      render = JS(
+        "function(data, type, row, meta) {",
+        "return type === 'display' && data.length > 6 ?",
+        "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
+        "}")
+    ))), callback = JS('table.page(3).draw(false);'))
   
 
   observeEvent(input$save_new_side_plan, {
@@ -734,12 +764,28 @@ server <- function(input, output, session) {
     
     df_Side_table_new <- rbind(Side_plan_add, df_Side_table)
     
-    output$edited_r_side_plan <-  renderTable(
-      reactive(df_Side_table_new),
-      striped = TRUE,
-      hover = TRUE,
-      bordered = TRUE
-    )
+
+    # output$edited_r_side_plan <-  renderTable(
+    #   df_Side_table_new %>% 
+    #     mutate(Date = as.character(Date)), #%>% 
+    #    #relocate(link_deck_list,link_source,Note_side_plan,.after =last_col()),
+    #   striped = TRUE,
+    #   hover = TRUE,
+    #   bordered = TRUE
+    # )
+    
+    output$edited_r_side_plan <-  renderDT(
+      data.table(reload_data_switch_tab()$df_Side_table() ),
+                 options = list(columnDefs = list(list(
+                   targets = c(5,6),
+                   render = JS(
+                     "function(data, type, row, meta) {",
+                     "return type === 'display' && data.length > 6 ?",
+                     "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
+                     "}")
+                 ))), callback = JS('table.page(3).draw(false);'))
+    
+    
     
     saveRDS(df_Side_table_new,
       file = file.path(outputDir, "df_Side_table.rds")
@@ -773,11 +819,8 @@ server <- function(input, output, session) {
     
     
     
-    df_Side_table_new <- df_Side_table
-    
-    
     # Gestion play draw sur les reset input 
-    if(input$Deck_matchup_side != df_Side_table_new$Matchup[1] & 
+    if(input$Deck_matchup_side != df_Side_table_new$Matchup[2] & 
        input$Play_or_draw_side == "Play"){
       
       updateSelectInput(
@@ -790,7 +833,7 @@ server <- function(input, output, session) {
       
       
       
-    } else if(input$Deck_matchup_side != df_Side_table_new$Matchup[1] & 
+    } else if(input$Deck_matchup_side != df_Side_table_new$Matchup[2] & 
               input$Play_or_draw_side == "Draw"){
       
       updateSelectInput(
@@ -869,6 +912,47 @@ server <- function(input, output, session) {
   observeEvent(input$reset_side_plan, {
     # Reset after saving
     shinyjs::runjs("history.go(0)")
+    
+    
+  })
+  
+  
+  
+
+  
+  
+  
+  
+  # df_Side_table <- reactive({
+  #   read_rds(file.path(outputDir, "df_Side_table.rds"))
+  # })
+  
+  
+  editedable_r_side_plan <- edit_data_server(
+    id = "side_plan_editable_df",
+    data_r = reload_data_switch_tab()$df_Side_table,
+    add = FALSE,
+    update = TRUE,
+    delete = TRUE,
+    download_csv = FALSE,
+    download_excel = FALSE,
+    var_mandatory = c(
+      "Deck",
+      "Player",
+      "Date",
+      "Matchup",
+      "Play_Draw",
+      "IN",
+      "OUT",
+      "Fiabilite"
+    )
+  )
+  
+  observeEvent(input$save_manual_edit_table, {
+    # Reset after saving
+    saveRDS(editedable_r_side_plan(),
+            file = file.path(outputDir, "df_Side_table.rds")
+    )
     
     
   })
