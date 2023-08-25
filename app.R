@@ -22,6 +22,10 @@ deck_parser <- function(deck_path) {
 }
 
 
+# ADD compâgnon in deck side plan
+
+
+
 # data_matchup <- read_rds(
 #   file.path(
 #     outputDir,
@@ -128,24 +132,6 @@ options(DT.options = list(
   )
 
 
-# df_Side_table <- data.frame(
-#   Deck = character(),
-#   Player = character(),
-#   Date = character(),
-#   link_deck_list = character(),
-#   link_source = character(),
-#   Note_on_list = character(),
-#   Matchup = character(),
-#   Play_Draw = character(),
-#   IN = character(),
-#   OUT = character(),
-#   Note_side_plan = character(),
-#   Fiability = character()
-# )
-# saveRDS(df_Side_table,file.path(outputDir,"df_Side_table.rds"))
-
-
-
 ui <- navbarPage(
   "Dashboard",
   tabPanel(
@@ -220,7 +206,6 @@ ui <- navbarPage(
                     step = 1L,
                     value = 5L
         ) # ,
-        # actionButton("add_on_side_plan", "Add cards side paln")
       )
     ),
     mainPanel(
@@ -236,7 +221,6 @@ ui <- navbarPage(
       ),
       wellPanel(
         DTOutput('edited_r_side_plan')
-        # edit_data_ui(id = "side_plan_edit_df")
       )
     )
   ),
@@ -264,7 +248,6 @@ ui <- navbarPage(
       mainPanel(
         wellPanel(
           DTOutput('result_matchup_table')
-          # tableOutput('result_matchup_table')
         )
       )
     )
@@ -350,28 +333,12 @@ reload_data_switch_tab <- eventReactive(input$Tab_active_nav_bar, {
     ))
     
   })
-
-  
-
-# reload_data_switch_tab$data_matchup
   
   
   ######### matchup panel #####################################
 
-
-
-  # output$result_matchup_table <-  renderTable(
-  #   reload_data_switch_tab()$data_matchup(),
-  #   striped = TRUE,
-  #   hover = TRUE,
-  #   bordered = TRUE
-  #   )
-
 output$result_matchup_table <-  renderDT(
-  datatable(reload_data_switch_tab()$data_matchup())#,
-  # striped = TRUE,
-  # hover = TRUE,
-  # bordered = TRUE
+  datatable(reload_data_switch_tab()$data_matchup())
 )
 
   observeEvent(input$add_one_matchup, {
@@ -483,12 +450,6 @@ output$result_matchup_table <-  renderDT(
       )
   })
 
-  # output$preview <- renderTable(
-  #   new_card_import_df(), 
-  #   striped = TRUE,
-  #   hover = TRUE,
-  #   bordered = TRUE
-  #   )
 
   output$preview <- renderDT(
     data.table(new_card_import_df())
@@ -688,16 +649,6 @@ output$result_matchup_table <-  renderDT(
   })
   
   
-
-  # output$edited_r_side_plan <-  renderTable(
-  #   reload_data_switch_tab()$df_Side_table() %>% 
-  #     mutate(Date = as.character(Date)),# %>% 
-  #     # relocate(link_deck_list,link_source,Note_side_plan,.after =last_col()),
-  #   striped = TRUE,
-  #   hover = TRUE,
-  #   bordered = TRUE
-  # )
-  
   output$edited_r_side_plan <-  renderDT(
     data.table(reload_data_switch_tab()$df_Side_table()) ,
                options = list(columnDefs = list(list(
@@ -765,17 +716,10 @@ output$result_matchup_table <-  renderDT(
     df_Side_table_new <- rbind(Side_plan_add, df_Side_table)
     
 
-    # output$edited_r_side_plan <-  renderTable(
-    #   df_Side_table_new %>% 
-    #     mutate(Date = as.character(Date)), #%>% 
-    #    #relocate(link_deck_list,link_source,Note_side_plan,.after =last_col()),
-    #   striped = TRUE,
-    #   hover = TRUE,
-    #   bordered = TRUE
-    # )
+
     
     output$edited_r_side_plan <-  renderDT(
-      data.table(reload_data_switch_tab()$df_Side_table() ),
+      data.table(df_Side_table_new ),
                  options = list(columnDefs = list(list(
                    targets = c(5,6),
                    render = JS(
@@ -790,31 +734,6 @@ output$result_matchup_table <-  renderDT(
     saveRDS(df_Side_table_new,
       file = file.path(outputDir, "df_Side_table.rds")
     )
-    
-    
-    # edited_r_side_plan <- edit_data_server(
-    #   id = "side_plan_edit_df",
-    #   data_r = reactive(df_Side_table_new),
-    #   add = FALSE,
-    #   update = TRUE,
-    #   delete = TRUE,
-    #   download_csv = FALSE,
-    #   download_excel = FALSE,
-    #   var_mandatory = c(
-    #     "Deck",
-    #     "Player",
-    #     "Date",
-    #     "Matchup",
-    #     "Play_Draw",
-    #     "IN",
-    #     "OUT",
-    #     "Fiabilite"
-    #   )
-    # )
-    # Decks_common_cards <- read_rds("data/Decks_common_cards.rds")
-    # 
-    
-    
     
     
     
@@ -917,15 +836,6 @@ output$result_matchup_table <-  renderDT(
   })
   
   
-  
-
-  
-  
-  
-  
-  # df_Side_table <- reactive({
-  #   read_rds(file.path(outputDir, "df_Side_table.rds"))
-  # })
   
   
   editedable_r_side_plan <- edit_data_server(

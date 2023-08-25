@@ -18,3 +18,22 @@ deck_parser <- function(deck_path) {
 }
 
 deck_list <- deck_parser("data/FB_joute_23_08.txt")
+
+
+
+deck_list$Side[which(deck_list$Side)[1]:nrow(deck_list)] <- TRUE
+
+Main_deck_a_side <- deck_list %>% 
+  filter(!Side)
+
+Side_deck_a_side <- deck_list %>% 
+  filter(Side) %>% drop_na()
+
+
+
+
+
+
+
+
+
