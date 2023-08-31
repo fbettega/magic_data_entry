@@ -22,7 +22,22 @@ deck_parser <- function(deck_path) {
 }
 
 
-# ADD compâgnon in deck side plan
+
+
+# 
+# df_Side_table <-  read_rds(file.path(outputDir, "df_Side_table.rds"))
+# 
+# 
+# saveRDS(df_Side_table,file.path(outputDir, "df_Side_table.rds"))
+
+
+################################################################################
+#Store Txt list link with side plan (optionnal)
+# if store auto add cards
+
+# Create_folder_if_dont_exist 
+# color_companion_Name/player_date_10first/char/of/note
+
 
 
 
@@ -32,8 +47,6 @@ deck_parser <- function(deck_path) {
 #     "modern_deck.rds"
 #     )
 #   )
-
-
 
 
 # Edit side plan
@@ -67,6 +80,7 @@ deck_parser <- function(deck_path) {
 # data_matchup <- data_matchup #%>% mutate(match_up = str_replace(match_up,"Jund","Saga party"))
 
 
+
   
 Colors_choice <-   data.frame(color = unlist(lapply((do.call(
   "c",
@@ -88,7 +102,7 @@ name = c("Mono U",
          "Dimir",
          "Simic",
          "Azorius",
-         "Izet",
+         "Izzet",
          "Golgari",
          "Orzhov",
          "Rakdos",
@@ -124,6 +138,28 @@ name = c("Mono U",
       )
     )
 
+
+Companion_list <- c(
+  "No companion",
+  "Umori, the Collector",
+  "Keruga, the Macrosage",
+  "Zirda, the Dawnwaker",
+  "Lutri, the Spellchaser",
+  "Gyruda, Doom of Depths",
+  "Obosh, the Preypiercer",
+  "Kaheera, the Orphanguard",
+  "Jegantha, the Wellspring",
+  "Yorion, Sky Nomad",
+  "Lurrus of the Dream-Den"
+                    )
+
+wish_board_type <- c(
+  "No wish board",
+  "Karn, the Great Creator",
+  "Wish"
+)
+
+
 options(DT.options = list(
   pageLength = 5,
   lengthMenu = c(5, 50, 100, 1000), 
@@ -132,8 +168,13 @@ options(DT.options = list(
   )
 
 
+
+
+
 ui <- navbarPage(
   "Dashboard",
+  
+  # Side entry
   tabPanel(
     "Side_table",
     sidebarPanel(
@@ -146,6 +187,14 @@ ui <- navbarPage(
         ),
         uiOutput("Color_deck"),
         
+        selectInput(
+          "companion", "Companion associate with deck",
+          c(unique(Companion_list))
+        ),
+        selectInput(
+          "wish_board", "Wish board in deck",
+          c(unique(wish_board_type))
+        ),
         textInput(
           "Player_side",
           "Player who played",
@@ -156,10 +205,9 @@ ui <- navbarPage(
           label = "Date du plan de side",
           value =  Sys.Date()
         ),
-        textInput(
-          "Deck_list_link",
-          "Deck liste link if exist",
-          value = ""
+        fileInput("deck_list_side_plan_file", NULL,
+                  buttonLabel = "Upload...",
+                  accept = c("text", ".txt")
         ),
         textInput(
           "source_side_link",
@@ -224,6 +272,7 @@ ui <- navbarPage(
       )
     )
   ),
+  # add matchup deck
   tabPanel(
     "Matchup",
     sidebarLayout(
@@ -252,6 +301,7 @@ ui <- navbarPage(
       )
     )
   ),
+  # add card to a matchup
   tabPanel(
     "Common card",
     sidebarPanel(
@@ -393,7 +443,10 @@ output$result_matchup_table <-  renderDT(
       
     }
 
-    new_matchup_df <- rbind(add_matchup_df,reload_data_switch_tab()$data_matchup()) 
+    new_matchup_df <- rbind(add_matchup_df,
+                            reload_data_switch_tab()$data_matchup()) %>%
+      mutate(match_up = trimws(match_up)) %>% 
+      distinct(match_up,color,.keep_all = TRUE)
     
     
 
@@ -401,7 +454,7 @@ output$result_matchup_table <-  renderDT(
       data.table(new_matchup_df)
     )
     
-    saveRDS(new_matchup_df %>%
+    saveRDS(new_matchup_df %>% 
               arrange(match_up),
             file = file.path(outputDir, sprintf("%s.rds", "modern_deck")))
   })
@@ -652,7 +705,7 @@ output$result_matchup_table <-  renderDT(
   output$edited_r_side_plan <-  renderDT(
     data.table(reload_data_switch_tab()$df_Side_table()) ,
                options = list(columnDefs = list(list(
-      targets = c(5,6),
+      targets = c(7,8),
       render = JS(
         "function(data, type, row, meta) {",
         "return type === 'display' && data.length > 6 ?",
@@ -680,7 +733,79 @@ output$result_matchup_table <-  renderDT(
     )
     
     
-    
+################################################################################
+################################## Save deck_list ##############################
+
+    if(!is.null(input$deck_list_side_plan_file)){
+      
+      if(!file.exists(file.path(outputDir,
+                                "deck_list",
+                                fs::path_sanitize(
+                                  input$Deck_en_cours_side
+                                ),
+                                fs::path_sanitize(
+                                  paste(
+                                    input$possible_color_deck_user,
+                                    input$companion,
+                                    input$wish_board,
+                                    input$Player_side,
+                                    input$date_side_plan,
+                                    substr(input$Note_sources_side,1,10),
+                                    ".csv",
+                                    sep = "_"
+                                  )
+                                )
+                                )
+                      )
+         ){
+      
+      dir.create(
+        file.path(outputDir,
+                  "deck_list",
+                  fs::path_sanitize(
+                    input$Deck_en_cours_side
+                    ) 
+                  ), 
+        showWarnings = FALSE
+        )
+      
+      
+      import_side_board_deck_list <- deck_parser(
+          # "data/FB_joute_23_08.txt"
+        input$deck_list_side_plan_file$datapath
+        ) 
+      
+      import_side_board_deck_list$Side[which(import_side_board_deck_list$Side)[1]:nrow(import_side_board_deck_list)] <- TRUE
+      
+      import_side_board_deck_list <- import_side_board_deck_list %>% 
+        drop_na()
+      
+      
+      write.csv(import_side_board_deck_list,
+                file.path(outputDir,
+                          "deck_list",
+                          fs::path_sanitize(
+                            input$Deck_en_cours_side
+                          ),
+                          fs::path_sanitize(
+                            paste(
+                              input$possible_color_deck_user,
+                              input$companion,
+                              input$wish_board,
+                              input$Player_side,
+                              input$date_side_plan,
+                              substr(input$Note_sources_side,1,10),
+                              ".csv",
+                              sep = "_"
+                            )
+                          )
+      ) , 
+                row.names = FALSE)
+
+      }
+      
+    }
+      
     In_en_cours <- paste(as.numeric(strsplit(input$Side_plan_number_of_IN,split = ",")[[1]]),
                          input$Side_in_card,
                          sep = " ",
@@ -692,28 +817,53 @@ output$result_matchup_table <-  renderDT(
                           collapse = " ; "
     )
     
-   
+    
+
     Side_plan_add <- data.frame(
       Deck = input$Deck_en_cours_side,
       color_deck = input$possible_color_deck_user,
-      Player = input$Player_side,
+      Companion = input$companion,
+      Wish_board = input$wish_board,
+      Player = trimws(input$Player_side),
       Date = input$date_side_plan,
-      link_deck_list = input$Deck_list_link,
-      link_source = input$source_side_link,
-      Note_on_list = input$Note_sources_side,
+      link_deck_list = file.path(outputDir,
+                                 "deck_list",
+                                 fs::path_sanitize(
+                                   input$Deck_en_cours_side
+                                 ),
+                                 fs::path_sanitize(
+                                   paste(
+                                     input$possible_color_deck_user,
+                                     input$companion,
+                                     input$wish_board,
+                                     input$Player_side,
+                                     input$date_side_plan,
+                                     substr(input$Note_sources_side,1,10),
+                                     ".csv",
+                                     sep = "_"
+                                   )
+                                 )
+      ),
+      link_source = trimws(input$source_side_link),
+      Note_on_list = trimws(input$Note_sources_side),
       Matchup = input$Deck_matchup_side,
       color_opponent = input$possible_color_deck_opponent,
       Play_Draw = input$Play_or_draw_side,
       IN = In_en_cours,
       OUT = OUT_en_cours,
-      Note_side_plan = input$Note_on_side_plan,
+      Note_side_plan = trimws(input$Note_on_side_plan),
       Fiability = input$Fiabilite
     )
     
     df_Side_table <- read_rds(file.path(outputDir, "df_Side_table.rds"))
     
     
-    df_Side_table_new <- rbind(Side_plan_add, df_Side_table)
+    df_Side_table_new <- rbind(
+      Side_plan_add, 
+      df_Side_table
+      ) 
+      
+      
     
 
 
@@ -721,7 +871,7 @@ output$result_matchup_table <-  renderDT(
     output$edited_r_side_plan <-  renderDT(
       data.table(df_Side_table_new ),
                  options = list(columnDefs = list(list(
-                   targets = c(5,6),
+                   targets = c(7,8),
                    render = JS(
                      "function(data, type, row, meta) {",
                      "return type === 'display' && data.length > 6 ?",
