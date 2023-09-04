@@ -24,64 +24,7 @@ deck_parser <- function(deck_path) {
 
 
 
-# 
-# df_Side_table <-  read_rds(file.path(outputDir, "df_Side_table.rds"))
-# 
-# 
-# saveRDS(df_Side_table,file.path(outputDir, "df_Side_table.rds"))
 
-
-################################################################################
-#Store Txt list link with side plan (optionnal)
-# if store auto add cards
-
-# Create_folder_if_dont_exist 
-# color_companion_Name/player_date_10first/char/of/note
-
-
-
-
-# data_matchup <- read_rds(
-#   file.path(
-#     outputDir,
-#     "modern_deck.rds"
-#     )
-#   )
-
-
-# Edit side plan
-# df_Side_table <-  read_rds(file.path(outputDir, "df_Side_table.rds"))
-# xlsx::write.xlsx(df_Side_table,row.names = FALSE,"temp.xlsx")
-# df_Side_table <- xlsx::read.xlsx("temp.xlsx",sheetIndex = 1)
-
-# df_Side_table <- df_Side_table  %>%  mutate(
-#   Player = trimws(Player)
-#   ,Fiability = ifelse(Player == "PieGonti",9,Fiability),
-#    Matchup = str_replace(Matchup,"Jund","Saga party"))
-#   
-# 
-# 
-# saveRDS(df_Side_table,file.path(outputDir, "df_Side_table.rds"))
-
-
-# Edit matchup
-# data_matchup <- read_rds(
-#   file.path(
-#     outputDir,
-#     "modern_deck.rds"
-#   )
-# )
-# saveRDS(data_matchup %>%
-#           arrange(match_up),
-#         file = file.path(outputDir, sprintf("%s.rds", "modern_deck")))
-
-
-
-# data_matchup <- data_matchup #%>% mutate(match_up = str_replace(match_up,"Jund","Saga party"))
-
-
-
-  
 Colors_choice <-   data.frame(color = unlist(lapply((do.call(
   "c",
   lapply(
@@ -161,7 +104,7 @@ wish_board_type <- c(
 
 
 options(DT.options = list(
-  pageLength = 5,
+  pageLength = 50,
   lengthMenu = c(5, 50, 100, 1000), 
   language = list(search = 'Filter:')
   )
@@ -170,12 +113,9 @@ options(DT.options = list(
 
 
 
-
 ui <- navbarPage(
   "Dashboard",
-  
-  # Side entry
-  tabPanel(
+    tabPanel(
     "Side_table",
     sidebarPanel(
       # Add side plan
@@ -703,9 +643,23 @@ output$result_matchup_table <-  renderDT(
   
   
   output$edited_r_side_plan <-  renderDT(
-    data.table(reload_data_switch_tab()$df_Side_table()) ,
-               options = list(columnDefs = list(list(
+    data.table(
+      reload_data_switch_tab()$df_Side_table() %>% 
+        mutate(
+          Deck = as.factor(Deck),
+          color_deck = as.factor(color_deck),
+          Companion = as.factor(Companion),
+          Wish_board = as.factor(Wish_board),
+          Player = as.factor(Player),
+          Matchup = as.factor(Matchup),
+          color_opponent = as.factor(color_opponent),
+          Play_Draw = as.factor(Play_Draw)
+        )
+      ),
+    filter = "top" ,
+    options = list(columnDefs = list(list(
       targets = c(7,8),
+      
       render = JS(
         "function(data, type, row, meta) {",
         "return type === 'display' && data.length > 6 ?",
@@ -869,7 +823,20 @@ output$result_matchup_table <-  renderDT(
 
     
     output$edited_r_side_plan <-  renderDT(
-      data.table(df_Side_table_new ),
+      data.table(
+        df_Side_table_new %>% 
+          mutate(
+            Deck = as.factor(Deck),
+            color_deck = as.factor(color_deck),
+            Companion = as.factor(Companion),
+            Wish_board = as.factor(Wish_board),
+            Player = as.factor(Player),
+            Matchup = as.factor(Matchup),
+            color_opponent = as.factor(color_opponent),
+            Play_Draw = as.factor(Play_Draw)
+          )
+                 ),
+      filter = "top",
                  options = list(columnDefs = list(list(
                    targets = c(7,8),
                    render = JS(
@@ -1016,6 +983,15 @@ output$result_matchup_table <-  renderDT(
     
     
   })
+
+  
+  
+  
+
+
+  
+  
+  
   
 }
 
@@ -1024,11 +1000,62 @@ output$result_matchup_table <-  renderDT(
 
 
 
-
-
-
-
-
-
-
 shinyApp(ui, server)
+
+
+
+
+# # 
+# df_Side_table <-  read_rds(file.path(outputDir, "df_Side_table.rds"))
+# 
+# # 
+# saveRDS(df_Side_table,file.path(outputDir, "df_Side_table.rds"))
+
+
+# data_matchup <- read_rds(
+#   file.path(
+#     outputDir,
+#     "modern_deck.rds"
+#     )
+#   )
+
+
+# Edit side plan
+# df_Side_table <-  read_rds(file.path(outputDir, "df_Side_table.rds"))
+# xlsx::write.xlsx(df_Side_table,row.names = FALSE,"temp.xlsx")
+# df_Side_table <- xlsx::read.xlsx("temp.xlsx",sheetIndex = 1)
+
+# df_Side_table <- df_Side_table  %>%  mutate(
+#   Player = trimws(Player)
+#   ,Fiability = ifelse(Player == "PieGonti",9,Fiability),
+#    Matchup = str_replace(Matchup,"Jund","Saga party"))
+#   
+# 
+# 
+# saveRDS(df_Side_table,file.path(outputDir, "df_Side_table.rds"))
+
+
+# Edit matchup
+# data_matchup <- read_rds(
+#   file.path(
+#     outputDir,
+#     "modern_deck.rds"
+#   )
+# )
+# saveRDS(data_matchup %>%
+#           arrange(match_up),
+#         file = file.path(outputDir, sprintf("%s.rds", "modern_deck")))
+
+
+
+# data_matchup <- data_matchup #%>% mutate(match_up = str_replace(match_up,"Jund","Saga party"))
+
+
+
+
+
+
+
+
+
+
