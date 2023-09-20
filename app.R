@@ -3,6 +3,7 @@ library(tidyverse)
 library(datamods)
 library(data.table)
 library(DT)
+library(digest)
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(DT::renderDataTable)
 conflicted::conflicts_prefer(shiny::renderDataTable)
@@ -25,6 +26,7 @@ deck_parser <- function(deck_path) {
 
 
 
+# Use upload list instead of common cards
 Colors_choice <-   data.frame(color = unlist(lapply((do.call(
   "c",
   lapply(
@@ -114,13 +116,14 @@ options(DT.options = list(
 
 
 ui <- navbarPage(
-  "Dashboard",
+  "Magic side entry",
     tabPanel(
     "Side_table",
     sidebarPanel(
       # Add side plan
       wellPanel(
         shinyjs::useShinyjs(),
+        # actionButton("browser", label ="browser" ),
         selectInput(
           "Deck_en_cours_side", "Deck name played",
           c("", unique(read_rds(file.path(outputDir, "modern_deck.rds"))$match_up))
@@ -658,7 +661,7 @@ output$result_matchup_table <-  renderDT(
       ),
     filter = "top" ,
     options = list(columnDefs = list(list(
-      targets = c(7,8),
+      targets = c(7,8,17,18),
       
       render = JS(
         "function(data, type, row, meta) {",
@@ -668,7 +671,9 @@ output$result_matchup_table <-  renderDT(
     ))), callback = JS('table.page(3).draw(false);'))
   
 
-  observeEvent(input$save_new_side_plan, {
+  observeEvent({
+    input$save_new_side_plan |  input$browser
+    }, {
 
     validate(
       need(
@@ -724,6 +729,7 @@ output$result_matchup_table <-  renderDT(
         )
       
       
+
       import_side_board_deck_list <- deck_parser(
           # "data/FB_joute_23_08.txt"
         input$deck_list_side_plan_file$datapath
@@ -735,6 +741,8 @@ output$result_matchup_table <-  renderDT(
         drop_na()
       
       
+      
+
       write.csv(import_side_board_deck_list,
                 file.path(outputDir,
                           "deck_list",
@@ -759,17 +767,68 @@ output$result_matchup_table <-  renderDT(
       }
       
     }
+    
+    main_deck_en_cours_x <- read.csv(file.path(outputDir,
+                                               "deck_list",
+                                               fs::path_sanitize(
+                                                 input$Deck_en_cours_side
+                                               ),
+                                               fs::path_sanitize(
+                                                 paste(
+                                                   input$possible_color_deck_user,
+                                                   input$companion,
+                                                   input$wish_board,
+                                                   input$Player_side,
+                                                   input$date_side_plan,
+                                                   substr(input$Note_sources_side,1,10),
+                                                   ".csv",
+                                                   sep = "_"
+                                                 )
+                                               )
+    )) %>%
+      filter(!Side) %>%
+      select(-Side) %>%
+      arrange(Card_name)
+    
+    
+    side_en_cours_x <- read.csv(file.path(outputDir,
+                                          "deck_list",
+                                          fs::path_sanitize(
+                                            input$Deck_en_cours_side
+                                          ),
+                                          fs::path_sanitize(
+                                            paste(
+                                              input$possible_color_deck_user,
+                                              input$companion,
+                                              input$wish_board,
+                                              input$Player_side,
+                                              input$date_side_plan,
+                                              substr(input$Note_sources_side,1,10),
+                                              ".csv",
+                                              sep = "_"
+                                            )
+                                          )
+    )) %>%
+      filter(Side) %>%
+      select(-Side) %>%
+      arrange(Card_name)
+    
+    
+    
+    
+    
+    
       
-    In_en_cours <- paste(as.numeric(strsplit(input$Side_plan_number_of_IN,split = ",")[[1]]),
+    In_en_cours <- sort(paste(as.numeric(strsplit(input$Side_plan_number_of_IN,split = ",")[[1]]),
                          input$Side_in_card,
                          sep = " ",
                          collapse = " ; "
-    )
-    OUT_en_cours <- paste(as.numeric(strsplit(input$Side_plan_number_of_OUT,split = ",")[[1]]),
-                          input$Side_out_card,
+    ))
+    OUT_en_cours <-  sort(paste(as.numeric(strsplit(input$Side_plan_number_of_OUT,split = ",")[[1]]),
+                         input$Side_out_card,
                           sep = " ",
                           collapse = " ; "
-    )
+    ))
     
     
 
@@ -806,18 +865,58 @@ output$result_matchup_table <-  renderDT(
       IN = In_en_cours,
       OUT = OUT_en_cours,
       Note_side_plan = trimws(input$Note_on_side_plan),
-      Fiability = input$Fiabilite
+      Fiability = input$Fiabilite,
+      hash_deck =  digest(main_deck_en_cours_x),
+      hash_side = digest(side_en_cours_x)
     )
+    
+    
+    
+    
+    
+    
     
     df_Side_table <- read_rds(file.path(outputDir, "df_Side_table.rds"))
     
+################################################################################
+###############################    A tester ####################################
     
-    df_Side_table_new <- rbind(
-      Side_plan_add, 
-      df_Side_table
+    # if same plan, for play draw change by both
+    
+    # observeEvent(input$browser, {
+    #   browser()
+    # })
+    
+    if(input$Deck_matchup_side == df_Side_table$Matchup[1] & 
+       (input$Play_or_draw_side == "Play" | 
+        input$Play_or_draw_side == "Draw") & 
+       (df_Side_table$Play_Draw[1] == "Draw" | 
+        df_Side_table$Play_Draw[1] == "Play") &
+       In_en_cours == df_Side_table$IN[1] &
+       OUT_en_cours == df_Side_table$OUT[1]
+       ){
+      
+ 
+      df_Side_table$Play_Draw[1]  <-  "Both"
+      
+      
+      df_Side_table_new <- df_Side_table
+    } else{
+      
+      df_Side_table_new <- rbind(
+        Side_plan_add, 
+        df_Side_table
       ) 
       
       
+      
+    }
+      
+
+    
+
+    
+################################################################################      
     
 
 
@@ -838,7 +937,7 @@ output$result_matchup_table <-  renderDT(
                  ),
       filter = "top",
                  options = list(columnDefs = list(list(
-                   targets = c(7,8),
+                   targets = c(7,8,17,18),
                    render = JS(
                      "function(data, type, row, meta) {",
                      "return type === 'display' && data.length > 6 ?",
@@ -851,6 +950,9 @@ output$result_matchup_table <-  renderDT(
     saveRDS(df_Side_table_new,
       file = file.path(outputDir, "df_Side_table.rds")
     )
+    
+    
+    
     
     
     
@@ -1053,9 +1155,38 @@ shinyApp(ui, server)
 
 
 
+# data_comon_card<- read_rds(
+#   file.path(
+#     outputDir,
+#     "Decks_common_cards.rds"
+#   )
+# )
 
+# saveRDS(data_comon_card,
+#         file = file.path(outputDir, sprintf("%s.rds", "Decks_common_cards")))
 
-
-
+# 
+# 
+# data_comon_card <- data_comon_card %>% filter(deck != "")
+# 
+# 
+# list(
+#   "brazen borrower" = "brazen borrower // petty theft",
+#   "dead" = "dead // gone",
+#   "fable of the mirror-breaker\\b" = "fable of the mirror-breaker // reflection of kiki-jiki",
+#   "fire" = "fire // ice",
+#   "wear"  = "wear // tear"
+#      )
+# 
+# 
+# 
+# 
+# 
+# 
+# strg_test <- c("dead","dead/","deada")
+# 
+# 
+# str_detect(strg_test,"")
+# 
 
 
