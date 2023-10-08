@@ -23,6 +23,12 @@ deck_parser <- function(deck_path) {
 }
 
 
+# remove tab common cards
+# feed common cards with decklist
+# default behavior show only cards from list
+# put check box to access all possible card
+# popup when clean name trigger
+
 
 
 
@@ -349,7 +355,8 @@ output$result_matchup_table <-  renderDT(
       Add_color_temp <- Colors_choice$color[Colors_choice$name == input$Add_color_name]
       
       add_matchup_df <- data.frame(
-        match_up = input$one_matchup_add,
+        match_up = str_replace(input$one_matchup_add,"^\\w{1}", toupper),
+        
         color = Add_color_temp,
         color_name = input$Add_color_name
       )
@@ -358,14 +365,14 @@ output$result_matchup_table <-  renderDT(
       Add_color_name_temp <- Colors_choice$name[Colors_choice$color == input$Add_color]
       
       add_matchup_df <- data.frame(
-        match_up = input$one_matchup_add,
+        match_up = str_replace(input$one_matchup_add,"^\\w{1}", toupper),
         color = input$Add_color,
         color_name = Add_color_name_temp
       )
       
     } else {
       add_matchup_df <- data.frame(
-        match_up = input$one_matchup_add,
+        match_up = str_replace(input$one_matchup_add,"^\\w{1}", toupper),
         color = input$Add_color,
         color_name = input$Add_color_name
       )
@@ -377,7 +384,7 @@ output$result_matchup_table <-  renderDT(
       add_matchup_df <- 
         rbind(add_matchup_df,
               data.frame(
-                match_up = input$one_matchup_add,
+                match_up = str_replace(input$one_matchup_add,"^\\w{1}", toupper),
                 color = "Any",
                 color_name = "Any"
       )
