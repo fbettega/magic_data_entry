@@ -48,8 +48,12 @@ df_Side_table <-
 
 
 
+# df_Side_table <- df_Side_table %>%
+#   mutate(link_deck_list = str_replace(link_deck_list,"/Titan/","/Amulet Titan/")) 
 
- # saveRDS(df_Side_table,file.path(outputDir, "df_Side_table.rds"))
+
+
+  saveRDS(df_Side_table ,file.path(outputDir, "df_Side_table.rds"))
 
 
 correction <- c(
@@ -94,6 +98,24 @@ for (i in seq_along(correction)){
   }
 }
 
+list.files("data/deck_list/",recursive = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -118,6 +140,142 @@ Decks_common_cards <-
 
 
 
+
+
+# path_of_deck_list <- df_Side_table %>%
+#   distinct(link_deck_list) %>%
+#   pull(link_deck_list)
+# 
+# 
+# 
+# list_of_deck_list <- lapply(path_of_deck_list, function(x){
+# 
+#   read.csv(x) %>% mutate(link_deck_list = x)
+# }) %>%
+#   bind_rows() %>%
+#   mutate(
+#     Side = ifelse(
+#       Side,
+#       "IN",
+#       "OUT"
+#     )
+#   )
+# 
+# df_Side_table <- df_Side_table %>% mutate(
+#   IN = ifelse(IN =="" ,"0 No side",IN),
+#   OUT = ifelse(OUT == ""|OUT == "0","0 No side",OUT)
+#                          )
+# 
+# 
+# 
+# 
+# 
+# 
+# long_side_table<-   df_Side_table %>%
+#   mutate(
+#     IN = str_split(IN," ; "),
+#     OUT = str_split(OUT," ; ")
+#   ) %>%
+#   rownames_to_column() %>%
+#   pivot_longer(cols = c(IN,OUT)
+# 
+#   ) %>%
+#   unnest_longer(col = c(value)
+#   ) %>%
+#   mutate(
+#     quantite = as.numeric(str_extract(value,"^\\d{1}")),
+#     value = trimws(str_remove(value,"^\\d{1}")),
+#     value = ifelse(rowname == 236 & value == "pact of negation","summoner's pact",value),
+#     value = ifelse(value == "brazen borrower","brazen borrower // petty theft",value)
+#   )
+# 
+# 
+# 
+# 
+# temp1 <- long_side_table %>%
+#   # perform join
+#   left_join(list_of_deck_list,
+#                              # define join columns
+#                              by=c("link_deck_list" = "link_deck_list",
+#                                   "name" = "Side",
+#                                   "value" = "Card_name")) %>% 
+#   
+#   mutate(
+#     quantite.y = ifelse(value=="No side",0,quantite.y),
+#     quantite =paste0(quantite.x,"/", quantite.y)) %>% 
+#   filter(!is.na(quantite.y)) %>% 
+#   select(-quantite.x, -quantite.y)
+# 
+# 
+# 
+# rebus1 <- long_side_table %>%
+#   # perform join
+#   left_join(list_of_deck_list,
+#             # define join columns
+#             by=c("link_deck_list" = "link_deck_list",
+#                  "name" = "Side",
+#                  "value" = "Card_name")) %>% 
+#   mutate(
+#     quantite.y = ifelse(value=="No side",0,quantite.y),
+#     quantite =paste0(quantite.x,"/", quantite.y)) %>% 
+#   filter(is.na(quantite.y))
+# 
+# 
+# 
+# 
+# 
+# 
+# temp2 <- rbind(
+#   temp1,
+#   rebus1 %>% 
+#   select(-quantite.y,-quantite ) %>% 
+#   rename(quantite = quantite.x) %>% 
+#   # perform join
+#   fuzzyjoin::fuzzy_left_join(list_of_deck_list,
+#                              # define join columns
+#                              by=c("link_deck_list" = "link_deck_list",
+#                                   "name" = "Side",
+#                                   "value" = "Card_name"),
+#                              # list of match functions (first should be clear)
+#                              match_fun = list(`==`, `==`,
+#                                               # function which returns boolean vector where maximum allowed string distance is 2 using levenshtein
+#                                               function(x,y)
+#                                                 stringdist::stringdist(x, y) <= 3))  %>%
+#   mutate(quantite =paste0(quantite.x,"/", quantite.y)) %>% 
+#   filter(!is.na(quantite.y)) %>%
+#    select( -c(Side, Card_name,link_deck_list.y,quantite.x, quantite.y)) %>%
+#     rename(link_deck_list = link_deck_list.x)
+#   )
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# long_side_table_merge_with_quantity <- temp2
+# 
+# 
+# 
+# wide_format_merge_table <- long_side_table_merge_with_quantity %>%
+#   mutate(Card = paste0( quantite," ",value )) %>%
+#    select(-quantite ,-value) %>%
+#   pivot_wider(names_from = name,
+#               values_from = Card,
+#               values_fn = ~ paste0(.x, collapse = " ; ")) %>%
+#   mutate(IN = ifelse(str_detect(IN,"NA/NA |0/NA ")  ,"",IN),
+#          OUT = ifelse(str_detect(OUT,"NA/NA |0/NA ") ,"",OUT)) 
+
+
+
+
+saveRDS(wide_format_merge_table,file.path(outputDir, "df_Side_table.rds"))
 
 
 

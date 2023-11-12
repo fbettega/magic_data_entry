@@ -210,6 +210,8 @@ ui <- navbarPage(
         shinyjs::useShinyjs(),
         actionButton("save_new_side_plan", "Save side plan"),
         actionButton("reset_side_plan", "Reset side plane"),
+        actionButton("browser", label ="browser" ),
+        
         hr(),
         verbatimTextOutput("text_in"),
         verbatimTextOutput("text_out"),
@@ -559,36 +561,117 @@ output$result_matchup_table <-  renderDT(
   })
   
   
+
   
-  output$IN_card_of_deck <- renderUI({
-    Decks_common_cards <- read_rds("data/Decks_common_cards.rds")
-    selected_chard_possibly_IN <- Decks_common_cards %>%
-      filter(
-        deck == input$Deck_en_cours_side, # "Omnath Control",
-        as.logical(Side)
-      ) %>%
-      pull(Card_name)
-    
-    selectInput(
-      inputId = "Side_in_card",
-      label = "Card IN",
-      choices = c("", unique(selected_chard_possibly_IN)),
-      multiple = TRUE
+##############################################################################
+# modif en colours  
+  
+deck_list_en_cours_path  <-  eventReactive(input$deck_list_side_plan_file, {
+  req(input$Deck_en_cours_side)
+  req(input$possible_color_deck_user)
+  req(input$companion)
+  req(input$wish_board)
+  req(input$Player_side)
+  req(input$date_side_plan)
+  # if(!is.null(input$deck_list_side_plan_file)){
+  path <-   file.path(outputDir,
+                      "deck_list",
+                      fs::path_sanitize(
+                        input$Deck_en_cours_side
+                      ),
+                      fs::path_sanitize(
+                        paste(
+                          input$possible_color_deck_user,
+                          input$companion,
+                          input$wish_board,
+                          input$Player_side,
+                          input$date_side_plan,
+                          ".csv",
+                          sep = "_"
+                        )
+                      )
+  )
+  
+  
+    if(!file.exists(
+      path
     )
+    ){
+      
+      dir.create(
+        file.path(outputDir,
+                  "deck_list",
+                  fs::path_sanitize(
+                    input$Deck_en_cours_side
+                  ) 
+        ), 
+        showWarnings = FALSE
+      )
+      
+      
+      
+      import_side_board_deck_list <- deck_parser(
+        # "data/FB_joute_23_08.txt"
+        input$deck_list_side_plan_file$datapath
+      ) 
+      
+      import_side_board_deck_list$Side[which(import_side_board_deck_list$Side)[1]:nrow(import_side_board_deck_list)] <- TRUE
+      
+      import_side_board_deck_list <- import_side_board_deck_list %>% 
+        drop_na()
+      
+      
+      
+      
+      write.csv(import_side_board_deck_list,
+                path , 
+                row.names = FALSE)
+      
+    # }
+    
+    
+ } 
+  return(path)
+  
   })
+  
+  main_deck_en_cours_x <- reactive(read.csv(deck_list_en_cours_path()) %>%
+    filter(!Side) %>%
+    select(-Side) %>%
+    arrange(Card_name))
+  
+  
+  side_en_cours_x <- reactive(read.csv(deck_list_en_cours_path()) %>%
+    filter(Side) %>%
+    select(-Side) %>%
+    arrange(Card_name))
+  
+  
+  
+  
+  observeEvent(input$browser, {
+    browser()
+  })
+  
+  
+
+  
+  
+  
+  
+  
+  
+  
   
   
   
   # Adaptable UI for side in and out.
   # Side IN
   output$IN_card_of_deck <- renderUI({
-    Decks_common_cards <- read_rds("data/Decks_common_cards.rds")
-    selected_chard_possibly_IN <- Decks_common_cards %>%
-      filter(
-        deck == input$Deck_en_cours_side, # "Omnath Control",
-        as.logical(Side)
-      ) %>%
-      pull(Card_name)
+
+    selected_chard_possibly_IN <- side_en_cours_x() %>%
+      mutate(IN = paste0("/",quantite," ",Card_name)) %>% 
+      pull(IN)
 
     selectInput(
       inputId = "Side_in_card",
@@ -602,15 +685,10 @@ output$result_matchup_table <-  renderDT(
 
   # Side out
   output$OUT_card_of_deck <- renderUI({
-    Decks_common_cards <- read_rds("data/Decks_common_cards.rds")
+    selected_chard_possibly_OUT <- main_deck_en_cours_x() %>%
+      mutate(OUT = paste0("/",quantite," ",Card_name)) %>% 
+      pull(OUT)
 
-
-    selected_chard_possibly_OUT <- Decks_common_cards %>%
-      filter(
-        deck == input$Deck_en_cours_side, # "Omnath Control",
-        !as.logical(Side)
-      ) %>%
-      pull(Card_name)
 
     selectInput(
       inputId = "Side_out_card",
@@ -628,7 +706,7 @@ output$result_matchup_table <-  renderDT(
       paste0("IN :",
       paste(as.numeric(strsplit(input$Side_plan_number_of_IN,split = ",")[[1]]),
                 input$Side_in_card,
-                sep = " ",
+                sep = "",
                 collapse = " ; "
     )
     )
@@ -640,7 +718,7 @@ output$result_matchup_table <-  renderDT(
       paste0("OUT : ",
              paste(as.numeric(strsplit(input$Side_plan_number_of_OUT,split = ",")[[1]]),
                 input$Side_out_card,
-                sep = " ",
+                sep = "",
                 collapse = " ; "
     )
     )
@@ -702,143 +780,24 @@ output$result_matchup_table <-  renderDT(
 ################################################################################
 ################################## Save deck_list ##############################
 
-    if(!is.null(input$deck_list_side_plan_file)){
+      In_en_cours <- sort(paste(as.numeric(strsplit(input$Side_plan_number_of_IN,split = ",")[[1]]),
+                                input$Side_in_card,
+                                sep = "",
+                                collapse = " ; "
+      ))
+      OUT_en_cours <-  sort(paste(as.numeric(strsplit(input$Side_plan_number_of_OUT,split = ",")[[1]]),
+                                  input$Side_out_card,
+                                  sep = "",
+                                  collapse = " ; "
+      ))
       
-      if(!file.exists(file.path(outputDir,
-                                "deck_list",
-                                fs::path_sanitize(
-                                  input$Deck_en_cours_side
-                                ),
-                                fs::path_sanitize(
-                                  paste(
-                                    input$possible_color_deck_user,
-                                    input$companion,
-                                    input$wish_board,
-                                    input$Player_side,
-                                    input$date_side_plan,
-                                    substr(input$Note_sources_side,1,10),
-                                    ".csv",
-                                    sep = "_"
-                                  )
-                                )
-                                )
-                      )
-         ){
-      
-      dir.create(
-        file.path(outputDir,
-                  "deck_list",
-                  fs::path_sanitize(
-                    input$Deck_en_cours_side
-                    ) 
-                  ), 
-        showWarnings = FALSE
-        )
-      
-      
-
-      import_side_board_deck_list <- deck_parser(
-          # "data/FB_joute_23_08.txt"
-        input$deck_list_side_plan_file$datapath
-        ) 
-      
-      import_side_board_deck_list$Side[which(import_side_board_deck_list$Side)[1]:nrow(import_side_board_deck_list)] <- TRUE
-      
-      import_side_board_deck_list <- import_side_board_deck_list %>% 
-        drop_na()
-      
-      
-      
-
-      write.csv(import_side_board_deck_list,
-                file.path(outputDir,
-                          "deck_list",
-                          fs::path_sanitize(
-                            input$Deck_en_cours_side
-                          ),
-                          fs::path_sanitize(
-                            paste(
-                              input$possible_color_deck_user,
-                              input$companion,
-                              input$wish_board,
-                              input$Player_side,
-                              input$date_side_plan,
-                              substr(input$Note_sources_side,1,10),
-                              ".csv",
-                              sep = "_"
-                            )
-                          )
-      ) , 
-                row.names = FALSE)
-
-      }
-      
+    if(In_en_cours=="" ){
+      In_en_cours <- "0/0 No side"
     }
-    
-    main_deck_en_cours_x <- read.csv(file.path(outputDir,
-                                               "deck_list",
-                                               fs::path_sanitize(
-                                                 input$Deck_en_cours_side
-                                               ),
-                                               fs::path_sanitize(
-                                                 paste(
-                                                   input$possible_color_deck_user,
-                                                   input$companion,
-                                                   input$wish_board,
-                                                   input$Player_side,
-                                                   input$date_side_plan,
-                                                   substr(input$Note_sources_side,1,10),
-                                                   ".csv",
-                                                   sep = "_"
-                                                 )
-                                               )
-    )) %>%
-      filter(!Side) %>%
-      select(-Side) %>%
-      arrange(Card_name)
-    
-    
-    side_en_cours_x <- read.csv(file.path(outputDir,
-                                          "deck_list",
-                                          fs::path_sanitize(
-                                            input$Deck_en_cours_side
-                                          ),
-                                          fs::path_sanitize(
-                                            paste(
-                                              input$possible_color_deck_user,
-                                              input$companion,
-                                              input$wish_board,
-                                              input$Player_side,
-                                              input$date_side_plan,
-                                              substr(input$Note_sources_side,1,10),
-                                              ".csv",
-                                              sep = "_"
-                                            )
-                                          )
-    )) %>%
-      filter(Side) %>%
-      select(-Side) %>%
-      arrange(Card_name)
-    
-    
-    
-    
-    
-    
       
-    In_en_cours <- sort(paste(as.numeric(strsplit(input$Side_plan_number_of_IN,split = ",")[[1]]),
-                         input$Side_in_card,
-                         sep = " ",
-                         collapse = " ; "
-    ))
-    OUT_en_cours <-  sort(paste(as.numeric(strsplit(input$Side_plan_number_of_OUT,split = ",")[[1]]),
-                         input$Side_out_card,
-                          sep = " ",
-                          collapse = " ; "
-    ))
-    
-    
-
+      if(OUT_en_cours == ""){
+        OUT_en_cours <- "0/0 No side"
+      }
     Side_plan_add <- data.frame(
       Deck = input$Deck_en_cours_side,
       color_deck = input$possible_color_deck_user,
@@ -858,7 +817,6 @@ output$result_matchup_table <-  renderDT(
                                      input$wish_board,
                                      input$Player_side,
                                      input$date_side_plan,
-                                     substr(input$Note_sources_side,1,10),
                                      ".csv",
                                      sep = "_"
                                    )
@@ -873,8 +831,8 @@ output$result_matchup_table <-  renderDT(
       OUT = OUT_en_cours,
       Note_side_plan = trimws(input$Note_on_side_plan),
       Fiability = input$Fiabilite,
-      hash_deck =  digest(main_deck_en_cours_x),
-      hash_side = digest(side_en_cours_x)
+      hash_deck =  digest(main_deck_en_cours_x()),
+      hash_side = digest(side_en_cours_x())
     )
     
     
